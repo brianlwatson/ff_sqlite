@@ -14,7 +14,7 @@ from multiprocessing import Process, Pool
 LEAGUE_ID="leagueId=1781003"
 
 # Utility Setup
-MAX_THREADS = 4
+MAX_THREADS = 8
 projUrls = []
 scoresUrls = []
 
@@ -222,9 +222,9 @@ db = sqlite3.connect(LEAGUE_ID.split("=")[-1]+".sqlite")
 pool = Pool(processes=MAX_THREADS)
 
 # Projections
-# projScraper=ProjScraper(db)
-# projScraper.getProjUrls()
-# projScraper.parallelize()
+projScraper=ProjScraper(db)
+projScraper.getProjUrls()
+projScraper.parallelize()
 
 # Scores
 scoreScraper=ScoreScraper(db)
