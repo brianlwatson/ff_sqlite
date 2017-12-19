@@ -21,13 +21,15 @@ scoresUrls = []
 # League information
 leagueName=""
 leagueMembers=[]
+fantasyOwners=[]
 
 # Scrape Info
 PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
 SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 CURRENT_YEAR="2017"
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
-REG_SEASON_WEEKS=13
+SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
+REG_SEASON_WEEKS=12
 PAGES_TO_SCRAPE=6
 #TODO - Add playoff scraping
 
@@ -59,18 +61,70 @@ class PlayerProjection:
 	def printPlayerProj(self):
 		print "(",self.week,")","Name:",self.name," Team:",self.nflTeam," Pos:",self.pos," Proj:",self.projPoints, " Owner:", self.fantasyOwner
 
-def getLeagueInfo():
-	standingsScrape=urllib.urlopen(STANDINGS_HOME).read()
-	soup=BeautifulSoup(standingsScrape, "html.parser")
+class LeagueScraper:
+	def getLeagueInfo(self):
+		standingsScrape=urllib.urlopen(STANDINGS_HOME).read()
+		soup=BeautifulSoup(standingsScrape, "html.parser")
 
-	#Scrape League Name and League members (in order of their ownerID)
-	global leagueName
-	leagueName=str(soup.find_all("div", class_="nav-main-breadcrumbs")[0].find_all("a", href=re.compile("leagueoffice"))[0].text)
-	teamNames=soup.find_all("div", class_="games-nav")[0].find_all("a", href=re.compile("teamId"))
-	for team in teamNames:
-		leagueMember=team.text[0:team.text.find("(")-1]
-		leagueMembers.append(str(leagueMember))
+		#Scrape League Name and League members (in order of their ownerID)
+		global leagueName
+		leagueName=str(soup.find_all("div", class_="nav-main-breadcrumbs")[0].find_all("a", href=re.compile("leagueoffice"))[0].text)
+		teamNames=soup.find_all("div", class_="games-nav")[0].find_all("a", href=re.compile("teamId"))
+		for team in teamNames:
+			leagueMember=team.text[0:team.text.find("(")-1]
+			leagueMembers.append(str(leagueMember))
+	
+	def scrapeOwners(self):
+		for teamId in range(1,len(leagueMembers)):
+			scheduleScrape=urllib.urlopen(SCHEDULE_HOME+"&teamId="+str(teamId))
+			soup=BeautifulSoup(scheduleScrape, "html.parser")
+			opponents=soup.find_all("table", class_="tableBody")[0].find_all("tr")
+			owner=FantasyOwner()
 
+			for each in opponents[1:]:
+				trData = each.text.split("\n")
+				
+				#Row does not contain matchup info
+				if len(trData) is 1:
+					continue
+
+				#Capture regular season data
+				#Data from row split by \n format: [u'', u'Week X', u'W/L/T OwnerScore-OppScore', u'at\xa0', u'Team Name (WINS-LOSSES-TIES)', u'Owner Name', u''] 
+				if "Week" in trData[1]:				
+					#trData index 2 is W/L/T OwnerScore-OppScore
+					if str(trData[2].split(" ")[0]) == "W":
+						owner.wins=owner.wins+1
+					elif str(trData[2].split(" ")[0]) == "L":
+						owner.losses=owner.losses+1
+					else:
+						owner.ties=owner.ties+1
+
+					owner.teamName=leagueMembers[teamId-1]
+					owner.scores.append(trData[2].split(" ")[1].split("-")[0])
+					owner.oppScores.append(trData[2].split(" ")[1].split("-")[1])
+
+					#opp Name is index 4: u'Team Name (WINS-LOSSES-TIES)'
+					owner.opponents.append(trData[4][0:trData[4].find("(")-1])
+					owner.opponentIDs.append( leagueMembers.index(owner.opponents[-1])+1 )
+			fantasyOwners.append(owner)
+			#Capture playoff data
+			#if "Round" in len(each.text.split("\n")):
+
+
+class FantasyOwner:
+	def __init__(self):
+		self.teamName=""
+		self.opponents=[]
+		self.opponentIDs=[]
+		self.scores=[]
+		self.oppScores=[]
+		self.wins=0
+		self.losses=0
+		self.ties=0
+	def printOwner(self):
+		print "Team: ",self.teamName#, " ("+(leagueMembers.index(self.teamName)+1)+")"
+		for i in range (1, REG_SEASON_WEEKS+1):
+			print "Week:",i, str(self.scores[i-1])+"-"+str(self.oppScores[i-1]), " vs. ", self.opponents[i-1], " ("+str(self.opponentIDs[i-1])+")"
 
 # Score retrieval
 class ScoreScraper:
@@ -239,23 +293,33 @@ def parseProjections(players, week):
 
 
 #Initialization
-getLeagueInfo()
+leagueScraper=LeagueScraper()
+leagueScraper.getLeagueInfo()
 print "Currently Configured for:",leagueName, "("+LEAGUE_ID+")"
-db = sqlite3.connect(filter(str.isalnum, str(leagueName))+".sqlite")
-pool = Pool(processes=MAX_THREADS)
+leagueScraper.scrapeOwners()
 
-#Scores
-projScraper=ProjScraper(db)
-projScraper.getProjUrls()
-projScraper.parallelize()
+# New Feature Testing
+#for owner in fantasyOwners:
+#	owner.printOwner(), "\n\n"
 
-#Projections
-scoreScraper=ScoreScraper(db)
-scoreScraper.getScoresUrls()
-scoreScraper.parallelize()
 
-db.commit()
-db.close()
+#Now have to run "python scraper.py -scrape" to enact scraping
+if len(sys.argv) > 1 and sys.argv[1] is "-scrape":
+	db = sqlite3.connect(filter(str.isalnum, str(leagueName))+".sqlite")
+	pool = Pool(processes=MAX_THREADS)
+
+	#Scores
+	projScraper=ProjScraper(db)
+	projScraper.getProjUrls()
+	projScraper.parallelize()
+
+	#Projections
+	scoreScraper=ScoreScraper(db)
+	scoreScraper.getScoresUrls()
+	scoreScraper.parallelize()
+
+	db.commit()
+	db.close()
 
 
 
