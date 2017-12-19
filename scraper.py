@@ -9,7 +9,7 @@ from multiprocessing import Process, Pool
 
 # Leagues
 # Stewart Family Bonding
-# LEAGUE_ID="leagueId=523659" 
+#LEAGUE_ID="leagueId=523659" 
 # Brian's Bimbos
 LEAGUE_ID="leagueId=1781003"
 
@@ -18,12 +18,19 @@ MAX_THREADS = 8
 projUrls = []
 scoresUrls = []
 
+# League information
+leagueName=""
+leagueMembers=[]
+
 # Scrape Info
 PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
 SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 CURRENT_YEAR="2017"
+STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
 REG_SEASON_WEEKS=13
 PAGES_TO_SCRAPE=6
+#TODO - Add playoff scraping
+
 
 # Points breakdown per team && week is at 
 # http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
@@ -51,6 +58,19 @@ class PlayerProjection:
 		self.week=week
 	def printPlayerProj(self):
 		print "(",self.week,")","Name:",self.name," Team:",self.nflTeam," Pos:",self.pos," Proj:",self.projPoints, " Owner:", self.fantasyOwner
+
+def getLeagueInfo():
+	standingsScrape=urllib.urlopen(STANDINGS_HOME).read()
+	soup=BeautifulSoup(standingsScrape, "html.parser")
+
+	#Scrape League Name and League members (in order of their ownerID)
+	global leagueName
+	leagueName=str(soup.find_all("div", class_="nav-main-breadcrumbs")[0].find_all("a", href=re.compile("leagueoffice"))[0].text)
+	teamNames=soup.find_all("div", class_="games-nav")[0].find_all("a", href=re.compile("teamId"))
+	for team in teamNames:
+		leagueMember=team.text[0:team.text.find("(")-1]
+		leagueMembers.append(str(leagueMember))
+
 
 # Score retrieval
 class ScoreScraper:
@@ -87,8 +107,8 @@ def fetchScoresPage(scoresUrl):
 	scoresScrape=urllib.urlopen(scoresUrl).read()
 	soup=BeautifulSoup(scoresScrape, "html.parser")
 	players=soup.find_all("tr", class_="pncPlayerRow")
-	# &scoringPeriodId=1
-	week = scoresUrl.split("scoringPeriodId=",1)[1][0]
+	#Assuming [URL]&scoringPeriodId=XX&seasonId=YYYY&startIndex=ZZZ	
+	week = scoresUrl.split("&")[1].split("=")[1]
 	return parseScores(players, week)
 
 def parseScores(players, week):
@@ -217,20 +237,33 @@ def parseProjections(players, week):
 		# pp.printPlayerProj()
 	return currPlayers
 
-# Initialization
-db = sqlite3.connect(LEAGUE_ID.split("=")[-1]+".sqlite")
+
+#Initialization
+getLeagueInfo()
+print "Currently Configured for:",leagueName, "("+LEAGUE_ID+")"
+db = sqlite3.connect(filter(str.isalnum, str(leagueName))+".sqlite")
 pool = Pool(processes=MAX_THREADS)
 
-# Projections
+#Scores
 projScraper=ProjScraper(db)
 projScraper.getProjUrls()
 projScraper.parallelize()
 
-# Scores
+#Projections
 scoreScraper=ScoreScraper(db)
 scoreScraper.getScoresUrls()
 scoreScraper.parallelize()
 
 db.commit()
 db.close()
+
+
+
+
+
+
+
+
+
+
 
