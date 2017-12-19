@@ -75,7 +75,7 @@ class LeagueScraper:
 			leagueMembers.append(str(leagueMember))
 	
 	def scrapeOwners(self):
-		for teamId in range(1,len(leagueMembers)):
+		for teamId in range(1,len(leagueMembers)+1):
 			scheduleScrape=urllib.urlopen(SCHEDULE_HOME+"&teamId="+str(teamId))
 			soup=BeautifulSoup(scheduleScrape, "html.parser")
 			opponents=soup.find_all("table", class_="tableBody")[0].find_all("tr")
@@ -122,9 +122,9 @@ class FantasyOwner:
 		self.losses=0
 		self.ties=0
 	def printOwner(self):
-		print "Team: ",self.teamName#, " ("+(leagueMembers.index(self.teamName)+1)+")"
+		print "Team: ",self.teamName, " (teamId="+str(leagueMembers.index(self.teamName)+1)+")"
 		for i in range (1, REG_SEASON_WEEKS+1):
-			print "Week:",i, str(self.scores[i-1])+"-"+str(self.oppScores[i-1]), " vs. ", self.opponents[i-1], " ("+str(self.opponentIDs[i-1])+")"
+			print "Week:",i, str(self.scores[i-1])+"-"+str(self.oppScores[i-1]), " vs. ", self.opponents[i-1], " (teamId="+str(self.opponentIDs[i-1])+")"
 
 # Score retrieval
 class ScoreScraper:
@@ -299,8 +299,8 @@ print "Currently Configured for:",leagueName, "("+LEAGUE_ID+")"
 leagueScraper.scrapeOwners()
 
 # New Feature Testing
-#for owner in fantasyOwners:
-#	owner.printOwner(), "\n\n"
+for owner in fantasyOwners:
+	owner.printOwner(), "\n\n"
 
 
 #Now have to run "python scraper.py -scrape" to enact scraping
