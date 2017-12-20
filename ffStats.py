@@ -6,6 +6,47 @@ import operator
 import ffScraper
 
 
+#These two classes will be used for printing out to html
+class FantasyStatRow:
+	def __init__(self):
+		self.name=""
+		self.stats=[]
+	def printRow(self):
+		print self.name,"\t",self.stats
+
+class FantasyStatTable:
+	def __init__(self):
+		self.description=""
+		self.tableHeaders=[]
+		self.rows=[] #List of FantasyStatRows
+	def printTable(self):
+		print self.description
+		print "Team Name\t", self.tableHeaders
+		for tr in self.rows:
+			print tr.name,"\t",tr.stats
+		print "\n"
+	def getHtmlTable(self, tableName):
+		tableString="\n\n<h1>"+self.description+"</h1>\n"
+		tableString=tableString+"<table id="+tableName+">\n"
+		tableHeaders="  <tr>\n"
+		tableHeaders=tableHeaders+"    <th>Team Name</th>\n"
+		for th in self.tableHeaders:
+			tableHeaders=tableHeaders+"    <th>"+th+"</th>\n"
+		tableHeaders=tableHeaders+"  </tr>\n"
+		tableString=tableString+tableHeaders
+
+		for td in self.rows:
+			tempRow="  <tr>\n"
+			tempRow=tempRow+"    <td>"+td.name+"</td>\n"
+			for stat in td.stats:
+				tempRow=tempRow+"    <td>"+stat+"</td>\n"
+			tempRow=tempRow+"  </tr>\n"
+			tableString=tableString+tempRow
+
+
+		tableString=tableString+"</table>\n"
+		return tableString
+
 # Calculations
 class TeamProjComposition:
 	def __init__(self):
@@ -159,5 +200,44 @@ def getBestProjLineup(ownerId):
 	for team in projTeams:
 		team.composeBestProjTeam()
 		team.printBestProjTeam()
+
+def getGamesForAgainst(ownerId, pointThreshold):
+	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	c=db.cursor()
+	gamesAgainst=[]
+	gamesFor=[]
+	numGamesFor=0
+	numGamesAgainst=0
+
+	fRow=FantasyStatRow()
+	fRow.name = ffScraper.fantasyOwners[ownerId-1].teamName
+
+	#Calculate games for where started players have scored greater than or equal to threshold
+	c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND points>={points}".\
+		format(points=pointThreshold, owner=ownerId, started=1))
+	#c.execute("SELECT * FROM scores WHERE owner=:owner AND points>:points AND started=:started", {"owner": ownerId, "points": pointThreshold, "started": 1})
+	gamesFor.append(c.fetchall())
+
+	#Query for games in which ownerID's opponent started a player that met or surpassed the threshold
+	for week in range(1, ffScraper.REG_SEASON_WEEKS+1):
+		oppID=ffScraper.fantasyOwners[ownerId-1].opponentIDs[week-1]
+		c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND points>={points} AND week={week}".\
+			format(points=pointThreshold, owner=oppID, started=1, week=week))
+		gamesAgainst.append(c.fetchall())
+
+	#If debug is needed, the contents of gamesFor and gamesAgainst will display the query results
+
+	numGamesFor=sum([len(g) for g in gamesFor])
+	fRow.stats.append(str(numGamesFor))
+	numGamesAgainst=sum([len(g) for g in gamesAgainst])
+	fRow.stats.append(str(numGamesAgainst))
+
+	return fRow
+
+
+
+
+
+
 
 

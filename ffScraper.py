@@ -11,9 +11,13 @@ import operator
 
 # Leagues
 # Stewart Family Bonding
-#LEAGUE_ID="leagueId=523659" 
+#LEAGUE_ID="leagueId=523659"
+#REG_SEASON_WEEKS=13
+
 # Brian's Bimbos
 LEAGUE_ID="leagueId=1781003"
+REG_SEASON_WEEKS=12
+
 CURRENT_YEAR="2017"
 
 # Scrape Info
@@ -21,7 +25,6 @@ PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
 SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
 SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
-REG_SEASON_WEEKS=12
 PAGES_TO_SCRAPE=6
 
 # Points breakdown per team && week is at 
@@ -137,6 +140,8 @@ class ScoreScraper:
 		self.c.execute('''DROP TABLE if exists scores''')
 		self.c.execute('''CREATE TABLE if not exists scores (name text, nflTeam text, position text, points real, started integer, owner integer, week real)''')
 	def updateDBScores(self,name,nflTeam,position,pointsScored,started,fantasyOwner,week):
+		if(pointsScored == "--"):
+			pointsScored=0
 		self.c.execute("INSERT INTO scores VALUES (?,?,?,?,?,?,?)",(name,nflTeam,position,pointsScored,started,fantasyOwner,week))
 	def getScoresUrls(self):
 		print "Getting scores URLs..."
