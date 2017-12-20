@@ -8,14 +8,30 @@ import time
 from multiprocessing import Process, Pool
 import operator
 
+
 # Leagues
 # Stewart Family Bonding
 #LEAGUE_ID="leagueId=523659" 
 # Brian's Bimbos
 LEAGUE_ID="leagueId=1781003"
+CURRENT_YEAR="2017"
 
-# Utility Setup
+# Scrape Info
+PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
+SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
+STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
+SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
+REG_SEASON_WEEKS=12
+PAGES_TO_SCRAPE=6
+
+# Points breakdown per team && week is at 
+# http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
+
+
+# Utilities
 MAX_THREADS = 8
+
+#TODO - Add playoff scraping
 projUrls = []
 scoresUrls = []
 
@@ -24,19 +40,6 @@ leagueName=""
 leagueMembers=[]
 fantasyOwners=[]
 
-# Scrape Info
-PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
-SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
-CURRENT_YEAR="2017"
-STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
-SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
-REG_SEASON_WEEKS=12
-PAGES_TO_SCRAPE=6
-#TODO - Add playoff scraping
-
-
-# Points breakdown per team && week is at 
-# http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
 
 # Object definitions
 class PlayerScore:
@@ -213,41 +216,6 @@ def parseScores(players, week):
 		# ps.printPlayerScore()
 	return currScores
 
-# Projection retrieval
-class ProjScraper:
-	def __init__(self, db):
-		self.c=db.cursor()
-		self.c.execute('''DROP TABLE if exists projections''')
-		self.c.execute('''CREATE TABLE if not exists projections (name text, nflTeam text, position text, proj real, owner integer, week real)''')
-	def updateDBProj(self,name, nflTeam,position,proj,owner, week):
-		self.c.execute("INSERT INTO projections VALUES (?,?,?,?,?,?)",(name,nflTeam,position,proj,owner,week))
-	def commitDB(self):
-		#self.c.execute('''COMMIT''')#
-		print ""
-	def getProjUrls(self):
-		print "Getting Projection URLS..."
-		for week in range(1,REG_SEASON_WEEKS+1):
-			# 5 pages of projections * 40 players should be enough for now
-			for page in range(0,PAGES_TO_SCRAPE):
-				if page is 0:
-					pageIndex=""
-				else:
-					pageStart=40*page
-					pageIndex="&startIndex="+str(pageStart)
-				projUrl=PROJ_HOME+"&scoringPeriodId="+str(week)+"&seasonId="+CURRENT_YEAR+pageIndex
-				projUrls.append(projUrl)
-
-	def parallelize(self):
-		startTime = int(round(time.time()))
-		sys.stdout.write("Gathering projections.")
-		sys.stdout.flush()
-		allPlayers = pool.map(fetchProjPage, projUrls)
-		endTime = int(round(time.time()))
-		for lst in allPlayers:
-			for pp in lst:
-				self.updateDBProj(pp.name, pp.nflTeam, pp.position, pp.projPoints, pp.fantasyOwner, pp.week)
-		print "\nProjections took " + str(endTime - startTime) + " seconds"
-
 def fetchProjPage(projUrl):
 	sys.stdout.write('.')
 	sys.stdout.flush()
@@ -293,204 +261,42 @@ def parseProjections(players, week):
 	return currPlayers
 
 
-# Calculations
-class TeamProjComposition:
-	def __init__(self):
-		self.owner = 0
-		self.week = 0
-		self.pts = 0.0
+# Projection retrieval
+class ProjScraper:
+	def __init__(self, db):
+		self.c=db.cursor()
+		self.c.execute('''DROP TABLE if exists projections''')
+		self.c.execute('''CREATE TABLE if not exists projections (name text, nflTeam text, position text, proj real, owner integer, week real)''')
+	def updateDBProj(self,name, nflTeam,position,proj,owner, week):
+		self.c.execute("INSERT INTO projections VALUES (?,?,?,?,?,?)",(name,nflTeam,position,proj,owner,week))
+	def commitDB(self):
+		#self.c.execute('''COMMIT''')#
+		print ""
+	def getProjUrls(self):
+		print "Getting Projection URLS..."
+		for week in range(1,REG_SEASON_WEEKS+1):
+			# 5 pages of projections * 40 players should be enough for now
+			for page in range(0,PAGES_TO_SCRAPE):
+				if page is 0:
+					pageIndex=""
+				else:
+					pageStart=40*page
+					pageIndex="&startIndex="+str(pageStart)
+				projUrl=PROJ_HOME+"&scoringPeriodId="+str(week)+"&seasonId="+CURRENT_YEAR+pageIndex
+				projUrls.append(projUrl)
 
-		self.qbs = {}
-		self.backs = {}
-		self.receivers = {}
-		self.tightEnds = {}
-		self.flexes = {}
-		self.dst = {}
-		self.kickers = {}
-
-		self.bestQB = ("", 0.0)
-		self.bestRB1 = ("", 0.0)
-		self.bestRB2 = ("", 0.0)
-		self.bestWR1 = ("", 0.0)
-		self.bestWR2 = ("", 0.0)
-		self.bestTE = ("", 0.0)
-		self.bestFLX1 = ("", 0.0)
-		self.bestFLX2 = ("", 0.0)
-		self.bestDST = ("", 0.0)
-		self.bestKick = ("", 0.0)
-
-	def addToTeam(self, player):
-		if player.position == "QB":
-			self.qbs[player.name] = player.projPoints
-		elif player.position == "RB":
-			self.backs[player.name] = player.projPoints
-		elif player.position == "WR":
-			self.receivers[player.name] = player.projPoints
-		elif player.position == "TE":
-			self.tightEnds[player.name] = player.projPoints
-		elif player.position == "D/ST":
-			self.dst[player.name] = player.projPoints
-		else:
-			self.kickers[player.name] = player.projPoints
-
-	def composeBestProjTeam(self):
-		for name, projScore in self.qbs.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestQB[1]:
-				self.bestQB = (name, projScore)
-		for name, projScore in self.backs.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestRB1[1]:
-				self.bestRB2 = self.bestRB1
-				self.bestRB1 = (name, projScore)
-			elif projScore > self.bestRB2[1]:
-				self.bestRB2 = (name, projScore)
-		for name, projScore in self.receivers.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestWR1[1]:
-				self.bestWR2 = self.bestWR1
-				self.bestWR1 = (name, projScore)
-			elif projScore > self.bestWR2[1]:
-				self.bestWR2 = (name, projScore)
-		for name, projScore in self.tightEnds.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestTE[1]:
-				self.bestTE = (name, projScore)
-		possFlexes = dict(self.backs)
-		possFlexes.update(self.receivers)
-		possFlexes.update(self.tightEnds)
-		del possFlexes[self.bestRB1[0]]
-		del possFlexes[self.bestRB2[0]]
-		del possFlexes[self.bestWR1[0]]
-		del possFlexes[self.bestWR2[0]]
-		del possFlexes[self.bestTE[0]]
-		possFlexes = sorted(possFlexes.items(), key=operator.itemgetter(1))
-		self.bestFLX1 = possFlexes[-1]
-		self.bestFLX2 = possFlexes[-2]
-		for name, projScore in self.dst.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestDST[1]:
-				self.bestDST = (name, projScore)
-		for name, projScore in self.kickers.items():
-			if projScore == "--":
-				projScore = 0.0
-			if projScore > self.bestKick[1]:
-				self.bestKick = (name, projScore)
-
-	def printBestProjTeam(self):
-		print "Owner: "+str(self.owner)+", week "+str(self.week)
-		print "Using projections, the best lineup (based on owned players) is:"
-		print "QB: "+str(self.bestQB[0])+", "+str(self.bestQB[1])
-		print "RB1: "+str(self.bestRB1[0])+", "+str(self.bestRB1[1])
-		print "RB2: "+str(self.bestRB2[0])+", "+str(self.bestRB2[1])
-		print "WR1: "+str(self.bestWR1[0])+", "+str(self.bestWR1[1])
-		print "WR2: "+str(self.bestWR2[0])+", "+str(self.bestWR2[1])
-		print "TE: "+str(self.bestTE[0])+", "+str(self.bestTE[1])
-		print "FLX1: "+str(self.bestFLX1[0])+", "+str(self.bestFLX1[1])
-		print "FLX2: "+str(self.bestFLX2[0])+", "+str(self.bestFLX2[1])
-		print "D/ST: "+str(self.bestDST[0])+", "+str(self.bestDST[1])
-		print "Kicker: "+str(self.bestKick[0])+", "+str(self.bestKick[1])
-		self.pts = float(self.bestQB[1])+float(self.bestRB1[1])+float(self.bestRB2[1])+float(self.bestWR1[1])+float(self.bestWR2[1])+float(self.bestTE[1])+float(self.bestDST[1])+float(self.bestKick[1])
-		print "Proj Team Points: " + str(self.pts)
-		print
-
-	def printTeam(self):
-		print "QUARTERBACKS:"
-		for name, projScore in self.qbs.items():
-			print name + ", " + str(projScore)
-		print "RUNNINGBACKS:"
-		for name, projScore in self.backs.items():
-			print name + ", " + str(projScore)
-		print "RECEIVERS:"
-		for name, projScore in self.receivers.items():
-			print name + ", " + str(projScore)
-		print "TIGHTENDS:"
-		for name, projScore in self.tightEnds.items():
-			print name + ", " + str(projScore)
-		print "D/ST:"
-		for name, projScore in self.dst.items():
-			print name + ", " + str(projScore)
-		print "KICKERS:"
-		for name, projScore in self.kickers.items():
-			print name + ", " + str(projScore)
-
-def getBestProjLineup(ownerId):
-	db = sqlite3.connect(LEAGUE_ID.split("=")[-1]+".sqlite")
-	c=db.cursor()
-	result = []
-	# for ownerId in range(1,len(fantasyOwners)+1):
-	for week in range(1,REG_SEASON_WEEKS+1):
-		c.execute("SELECT * FROM projections WHERE owner=:owner AND week=:week", {"owner": ownerId, "week": float(week)})
-		result.append(c.fetchall())
-	db.close()
-	projTeams = []
-	for team in result:
-		projTeam = TeamProjComposition()
-		for player in team:
-			name=player[0]
-			nflTeam=player[1]
-			pos=player[2]
-			proj=player[3]
-			owner=player[4]
-			week=player[5]
-			pp = PlayerProjection(name,nflTeam,pos,proj,owner,week)
-			projTeam.owner = owner
-			projTeam.week = week
-			projTeam.addToTeam(pp)
-		projTeams.append(projTeam)
-	for team in projTeams:
-		team.composeBestProjTeam()
-		team.printBestProjTeam()
-
-def main():
-	if "-help" in sys.argv:
-		print "USAGE: python scraper.py [-scrape] [-games] [-project=<teamId>]"
-		return
-	
-	#Initialization
-	leagueScraper=LeagueScraper()
-	leagueScraper.getLeagueInfo()
-	print "Currently Configured for:",leagueName, "("+LEAGUE_ID+")"
-	leagueScraper.scrapeOwners()
+	def parallelize(self):
+		startTime = int(round(time.time()))
+		sys.stdout.write("Gathering projections.")
+		sys.stdout.flush()
+		allPlayers = pool.map(fetchProjPage, projUrls)
+		endTime = int(round(time.time()))
+		for lst in allPlayers:
+			for pp in lst:
+				self.updateDBProj(pp.name, pp.nflTeam, pp.position, pp.projPoints, pp.fantasyOwner, pp.week)
+		print "\nProjections took " + str(endTime - startTime) + " seconds"
 
 
-	# Scrape first for fresh data if other args are given
-	#Now have to run "python scraper.py -scrape" to enact scraping
-	if "-scrape" in sys.argv:
-		# db = sqlite3.connect(filter(str.isalnum, str(leagueName))+".sqlite")
-		db = sqlite3.connect(LEAGUE_ID.split("=")[-1]+".sqlite")
-		pool = Pool(processes=MAX_THREADS)
 
-		#Scores
-		projScraper=ProjScraper(db)
-		projScraper.getProjUrls()
-		projScraper.parallelize()
+pool = Pool(processes=MAX_THREADS)
 
-		#Projections
-		scoreScraper=ScoreScraper(db)
-		scoreScraper.getScoresUrls()
-		scoreScraper.parallelize()
-
-		db.commit()
-		db.close()
-
-	# print game outcomes
-	if "-games" in sys.argv:
-		for owner in fantasyOwners:
-			owner.printOwner(), "\n\n"
-
-	# print best projected lineup for a given ownerId
-	proj = re.compile("-project=\d+")
-	for arg in sys.argv:
-		if proj.match(arg):
-			teamId = arg.split("=")[1]
-			getBestProjLineup(int(teamId))
-			break
-
-if __name__ == "__main__":
-    main()
