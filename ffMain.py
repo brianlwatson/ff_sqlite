@@ -66,12 +66,14 @@ def main():
 			htmlStrings.append(tableOut)
 
 
-	if "-totalprojacc" in sys.argv:
+	#Show a user's week by week +/- against projections
+	if "-weeklyuserproj" in sys.argv:
 		for ownerId in range(1,len(ffScraper.leagueMembers)+1):
 			resTable=ffStats.calcProjectionAccuracy(ownerId,0)
 			htmlStrings.append(resTable.getHtmlTable("totalprojacc"))
 
-	if "-allprojacc" in sys.argv:
+	#Show summarized versions of how all users did against their projections
+	if "-alluserproj" in sys.argv:
 		projTable=ffStats.FantasyStatTable()
 		projTable.description=str("Projection Accuracy for "+ffScraper.leagueName)
 		projTable.tableHeaders=["Score","Projection","+/-"]
@@ -80,7 +82,8 @@ def main():
 			projTable.rows.append(ffStats.calcProjectionAccuracy(ownerId,2))
 		htmlStrings.append(projTable.getHtmlTable("allprojacc"))
 
-	proj = re.compile("-projacc=\d+")
+	#Show a detailed version of the specified player's starters and how they did against projections
+	proj = re.compile("-detailedproj=\d+")
 	for arg in sys.argv:
 		if proj.match(arg):
 			teamId = arg.split("=")[1]
