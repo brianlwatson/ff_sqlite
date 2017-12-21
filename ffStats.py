@@ -211,7 +211,7 @@ def getBestProjLineup(ownerId):
 	result = []
 	# for ownerId in range(1,len(fantasyOwners)+1):
 	for week in range(1,ffScraper.REG_SEASON_WEEKS+1):
-		c.execute("SELECT * FROM projections WHERE owner=:owner AND week=:week", {"owner": ownerId, "week": float(week)})
+		c.execute("SELECT * FROM scores WHERE owner=:owner AND week=:week", {"owner": ownerId, "week": float(week)})
 		result.append(c.fetchall())
 	db.close()
 	projTeams = []
@@ -224,7 +224,9 @@ def getBestProjLineup(ownerId):
 			proj=player[3]
 			owner=player[4]
 			week=player[5]
-			pp = ffScraper.PlayerProjection(name,nflTeam,pos,proj,owner,week)
+			score=0.0
+			started=0
+			pp = ffScraper.PlayerScores(name,nflTeam,pos,proj,score,started,owner,week)
 			projTeam.owner = owner
 			projTeam.week = week
 			projTeam.addToTeam(pp)
