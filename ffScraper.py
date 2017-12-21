@@ -18,6 +18,9 @@ import operator
 LEAGUE_ID="leagueId=1781003"
 REG_SEASON_WEEKS=12
 
+#Allow for scraping of decimal values
+USE_DECIMALS=0
+
 CURRENT_YEAR="2017"
 
 # Scrape Info
@@ -26,7 +29,6 @@ SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
 SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
 PAGES_TO_SCRAPE=6
-
 # Points breakdown per team && week is at 
 # http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
 
@@ -273,6 +275,10 @@ class ProjScraper:
 		self.c.execute('''DROP TABLE if exists projections''')
 		self.c.execute('''CREATE TABLE if not exists projections (name text, nflTeam text, position text, proj real, owner integer, week real)''')
 	def updateDBProj(self,name, nflTeam,position,proj,owner, week):
+		if proj == "--":
+			proj = 0.0
+		if not USE_DECIMALS:
+			proj = round(float(proj))
 		self.c.execute("INSERT INTO projections VALUES (?,?,?,?,?,?)",(name,nflTeam,position,proj,owner,week))
 	def commitDB(self):
 		#self.c.execute('''COMMIT''')#

@@ -4,7 +4,38 @@ import sys
 import time
 import operator
 import ffScraper
+from operator import itemgetter
+class FantasyPlayer:
+	def __init__(self):
+		self.name=""
+		self.nflTeam=""
+		self.position=""
+		self.owner=0
+		self.week=0
+		self.started=0
+		self.score=0
+		self.projection=0
+		self.miscStats=[] #This can serve as anything
+	def printPlayer(self):
+		print self.name, self.position, self.nflTeam, "ownerID="+str(self.owner), "week="+str(self.week), "started="+str(self.started), "projection="+str(self.projection), "score="+str(self.score),"\n"
+	def scoreQueryToPlayer(self, query):
+		#Based on the format of a SELECT * from scores table
+		self.name=query[0]
+		self.nflTeam=query[1]
+		self.position=query[2]
+		self.score=(query[3])
+		self.started=(query[4])
+		self.owner=(query[5])
+		self.week=(query[6])
 
+def intToPlusMinusHTML(value):
+	if value >= 0.0:
+		return str("<span class=\"posValue\">+"+str(value)+"</span>")
+	else:
+		return str("<span class=\"negValue\">"+str(value)+"</span>")
+
+def addHTMLClass(value, spanClass):
+	return str("<span class=\""+spanClass+"\">"+value+"</span>")
 
 #These two classes will be used for printing out to html
 class FantasyStatRow:
@@ -234,9 +265,101 @@ def getGamesForAgainst(ownerId, pointThreshold):
 
 	return fRow
 
+#Calculate 
+def calcProjectionAccuracy(ownerId, verbosity):
+	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	c=db.cursor()
 
+	tables=[]
 
+	totalTable=FantasyStatTable()
+	totalTable.description=str("Total ESPN Projection +/- for "+ffScraper.leagueMembers[ownerId-1])
+	totalTable.tableHeaders=["Score","Projection","+/-"]
 
+	seasonPlusMinus=0
+	seasonScored=0
+	seasonProjected=0
+
+	for week in range(1,ffScraper.REG_SEASON_WEEKS+1):
+		started=[]
+		c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND week={week}".\
+			format(owner=ownerId, started=1, week=week))
+		started.append(c.fetchall())
+
+		players=[]
+		#Get Starters
+		for start in started[0]:
+			player=FantasyPlayer()
+			player.scoreQueryToPlayer(start)
+			players.append(player)
+
+		proj=[]
+		#Get corresponding projections for starters
+		for p in players:
+			#Fix single quotes or hyphens string querying
+			if '-' in p.name or "'" in p.name:
+				p.name=p.name.replace("'","%")
+				p.name=p.name.replace("-","%")
+			c.execute("SELECT name,proj FROM projections WHERE week={week} AND owner={owner} AND nflTeam like '{nfl}' AND name like '{name}' AND position='{position}'".\
+				format(week=week,owner=ownerId,nfl=p.nflTeam, name=p.name,  position=p.position, nflTeam=p.nflTeam))
+			try:
+				p.projection=c.fetchall()[0][1]
+			except:
+				p.projection = 0
+
+		accTable=FantasyStatTable()
+		accTable.description=str("Projection Accuracy for "+ffScraper.leagueMembers[ownerId-1]+ " in Week "+str(week))
+		accTable.tableHeaders=["Score","Projection","+/-"]
+
+		totalPlusMinus=0
+		totalScored=0
+		totalProjected=0
+
+		#Get Scores, projections and +/-, and add them into formatted tables
+		for each in players:
+			newRow=FantasyStatRow()
+			newRow.name=each.name
+			newRow.stats.append(str(each.score))
+			newRow.stats.append(str(each.projection))
+			newRow.stats.append(intToPlusMinusHTML(each.score-each.projection))
+			totalPlusMinus=totalPlusMinus+(each.score-each.projection)
+			totalScored=totalScored+each.score
+			totalProjected=totalProjected+each.projection
+			accTable.rows.append(newRow)
+
+		totalRow=FantasyStatRow()
+
+		if verbosity == 1:
+			totalRow.name=addHTMLClass("Week "+str(week)+" Total","bold")
+			totalRow.stats=[addHTMLClass(str(totalScored), "bold"),addHTMLClass(str(totalProjected),"bold"),addHTMLClass(intToPlusMinusHTML(totalPlusMinus), "bold")]
+		else:
+			totalRow.name="Week "+str(week)+" Total"
+			totalRow.stats=[str(totalScored),str(totalProjected),intToPlusMinusHTML(totalPlusMinus)]
+		
+		seasonPlusMinus = seasonPlusMinus+totalPlusMinus
+		seasonProjected = seasonProjected+totalProjected
+		seasonScored = seasonScored + totalScored
+
+		accTable.rows.append(totalRow)
+
+		tables.append(accTable)
+		totalTable.rows.append(totalRow)
+	if verbosity == 0:
+		seasonTotalRow=FantasyStatRow()
+		seasonTotalRow.name=addHTMLClass("Season Total","bold")
+		seasonTotalRow.stats=[addHTMLClass(str(seasonScored),"bold"),addHTMLClass(str(seasonProjected),"bold"),addHTMLClass(intToPlusMinusHTML(seasonPlusMinus), "bold")]
+		totalTable.rows.append(seasonTotalRow)
+
+		return totalTable
+	if verbosity == 1:
+		return tables
+	if verbosity == 2:
+		seasonTotalRow=FantasyStatRow()
+		seasonTotalRow.name=ffScraper.leagueMembers[ownerId-1]
+		seasonTotalRow.stats=[str(seasonScored),str(seasonProjected),intToPlusMinusHTML(seasonPlusMinus)]
+		return seasonTotalRow
+		#totalRow.name=ffScraper.leagueMembers[ownerId-1]
+		#return totalRow
 
 
 

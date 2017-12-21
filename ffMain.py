@@ -62,10 +62,32 @@ def main():
 			pointsTable.tableHeaders=["Games For","Games Against"]
 			for ownerId in range(1,len(ffScraper.leagueMembers)+1):
 				pointsTable.rows.append(ffStats.getGamesForAgainst(ownerId,threshold))
-			pointsTable.printTable()
 			tableOut=pointsTable.getHtmlTable("threshold"+str(threshold))
 			htmlStrings.append(tableOut)
 
+
+	if "-totalprojacc" in sys.argv:
+		for ownerId in range(1,len(ffScraper.leagueMembers)+1):
+			resTable=ffStats.calcProjectionAccuracy(ownerId,0)
+			htmlStrings.append(resTable.getHtmlTable("totalprojacc"))
+
+	if "-allprojacc" in sys.argv:
+		projTable=ffStats.FantasyStatTable()
+		projTable.description=str("Projection Accuracy for "+ffScraper.leagueName)
+		projTable.tableHeaders=["Score","Projection","+/-"]
+
+		for ownerId in range(1, len(ffScraper.leagueMembers)+1):
+			projTable.rows.append(ffStats.calcProjectionAccuracy(ownerId,2))
+		htmlStrings.append(projTable.getHtmlTable("allprojacc"))
+
+	proj = re.compile("-projacc=\d+")
+	for arg in sys.argv:
+		if proj.match(arg):
+			teamId = arg.split("=")[1]
+			resTables=ffStats.calcProjectionAccuracy(int(teamId),1)
+			for table in resTables:
+				htmlStrings.append(table.getHtmlTable("projacc"))
+			break
 
 	# print best projected lineup for a given ownerId
 	proj = re.compile("-project=\d+")
@@ -74,6 +96,8 @@ def main():
 			teamId = arg.split("=")[1]
 			ffStats.getBestProjLineup(int(teamId))
 			break
+
+
 
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:
