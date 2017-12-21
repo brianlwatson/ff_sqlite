@@ -8,7 +8,7 @@ import ffStats
 htmlStrings=[]
 
 def writeHTMLOut():
-	htmlDoc="<html>\n  <head><title>"+str(ffScraper.leagueName)+"</title></head>"
+	htmlDoc="<html>\n  <head><title>"+str(ffScraper.leagueName)+"</title><link rel=\"stylesheet\" type=\"text/css\" href=\"fantasy.css\"></head>"
 	for htmlOut in htmlStrings:
 		htmlDoc=htmlDoc+htmlOut
 	htmlDoc=htmlDoc+"\n</html>"
