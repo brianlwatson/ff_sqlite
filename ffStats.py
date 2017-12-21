@@ -23,10 +23,11 @@ class FantasyPlayer:
 		self.name=query[0]
 		self.nflTeam=query[1]
 		self.position=query[2]
-		self.score=(query[3])
-		self.started=(query[4])
-		self.owner=(query[5])
-		self.week=(query[6])
+		self.projection=(query[3])
+		self.score=(query[4])
+		self.started=(query[5])
+		self.owner=(query[6])
+		self.week=(query[7])
 
 def intToPlusMinusHTML(value):
 	if value >= 0.0:
@@ -292,20 +293,6 @@ def calcProjectionAccuracy(ownerId, verbosity):
 			player=FantasyPlayer()
 			player.scoreQueryToPlayer(start)
 			players.append(player)
-
-		proj=[]
-		#Get corresponding projections for starters
-		for p in players:
-			#Fix single quotes or hyphens string querying
-			if '-' in p.name or "'" in p.name:
-				p.name=p.name.replace("'","%")
-				p.name=p.name.replace("-","%")
-			c.execute("SELECT name,proj FROM projections WHERE week={week} AND owner={owner} AND nflTeam like '{nfl}' AND name like '{name}' AND position='{position}'".\
-				format(week=week,owner=ownerId,nfl=p.nflTeam, name=p.name,  position=p.position, nflTeam=p.nflTeam))
-			try:
-				p.projection=c.fetchall()[0][1]
-			except:
-				p.projection = 0
 
 		accTable=FantasyStatTable()
 		accTable.description=str("Projection Accuracy for "+ffScraper.leagueMembers[ownerId-1]+ " in Week "+str(week))

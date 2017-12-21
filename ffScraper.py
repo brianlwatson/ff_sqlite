@@ -35,6 +35,7 @@ PAGES_TO_SCRAPE=6
 
 # Utilities
 MAX_THREADS = 8
+# pool = Pool(processes=MAX_THREADS)
 
 #TODO - Add playoff scraping
 projUrls = []
@@ -45,30 +46,18 @@ leagueName=""
 leagueMembers=[]
 fantasyOwners=[]
 
-
-# Object definitions
-class PlayerScore:
-	def __init__(self, name, nfl, pos, points, started, owner, week):
-		self.name=name
-		self.nflTeam=nfl
-		self.position=pos
-		self.pointsScored=points
-		self.started=started
-		self.fantasyOwner=owner
-		self.week=week
-	def printPlayerScore(self):
-		print "(",self.week,")","Name:",self.name," Team:",self.nflTeam," Pos:",self.position," Points:",self.pointsScored, " Started:",self.started, " Owner:", self.fantasyOwner
-
-class PlayerProjection:
-	def __init__(self, name, nfl, pos, proj, owner, week):
+class PlayerScores:
+	def __init__(self, name, nfl, pos, proj, points, started, owner, week):
 		self.name=name
 		self.nflTeam=nfl
 		self.position=pos
 		self.projPoints=proj
+		self.pointsScored=points
+		self.started=started
 		self.fantasyOwner=owner
 		self.week=week
 	def printPlayerProj(self):
-		print "(",self.week,")","Name:",self.name," Team:",self.nflTeam," Pos:",self.pos," Proj:",self.projPoints, " Owner:", self.fantasyOwner
+		print "(",self.week,")","Name:",self.name," Team:",self.nflTeam," Pos:",self.pos," Proj:",self.projPoints, " Points:",self.pointsScored, " Started:",self.started, " Owner:", self.fantasyOwner
 
 class FantasyOwner:
 	def __init__(self):
@@ -139,12 +128,12 @@ class LeagueScraper:
 class ScoreScraper:
 	def __init__(self, db):
 		self.c=db.cursor()
-		self.c.execute('''DROP TABLE if exists scores''')
-		self.c.execute('''CREATE TABLE if not exists scores (name text, nflTeam text, position text, points real, started integer, owner integer, week real)''')
-	def updateDBScores(self,name,nflTeam,position,pointsScored,started,fantasyOwner,week):
+		# self.c.execute('''DROP TABLE if exists scores''')
+		self.c.execute('''CREATE TABLE if not exists scores (name text, nflTeam text, position text, proj real, score real, started int, owner integer, week real)''')
+	def updateDBScores(self,name,nflTeam,position,pointsScored,started,ownerId,week):
 		if(pointsScored == "--"):
 			pointsScored=0
-		self.c.execute("INSERT INTO scores VALUES (?,?,?,?,?,?,?)",(name,nflTeam,position,pointsScored,started,fantasyOwner,week))
+		self.c.execute("UPDATE scores SET score=:score, started=:started WHERE owner=:owner AND week=:week AND name=:name", {"score": pointsScored, "started":started, "owner": ownerId, "week": float(week), "name":name})
 	def getScoresUrls(self):
 		print "Getting scores URLs..."
 		for week in range (1, REG_SEASON_WEEKS + 1):
@@ -218,9 +207,9 @@ def parseScores(players, week):
 					if "Bench" not in lineupPos.text:
 						started = 1
 
-		ps=PlayerScore(playerName,playerNFL,playerPos,pointsScored,started,playerOwner,week)
+		proj = 0.0
+		ps=PlayerScores(playerName,playerNFL,playerPos,proj,pointsScored,started,playerOwner,week)
 		currScores.append(ps)
-		# ps.printPlayerScore()
 	return currScores
 
 def fetchProjPage(projUrl):
@@ -261,9 +250,10 @@ def parseProjections(players, week):
 		#If you wanted all of the numerical stats, you could find them in 
 		#for pStat in playerProj:
 		#	print pStat.text
-
-		pp=PlayerProjection(playerName,playerNFL,playerPos,playerProj,playerOwner,week)
-		currPlayers.append(pp)
+		playerPoints = 0
+		started = 0
+		ps=PlayerScores(playerName,playerNFL,playerPos,playerProj,playerPoints,started,playerOwner,week)
+		currPlayers.append(ps)
 		# pp.printPlayerProj()
 	return currPlayers
 
@@ -272,14 +262,14 @@ def parseProjections(players, week):
 class ProjScraper:
 	def __init__(self, db):
 		self.c=db.cursor()
-		self.c.execute('''DROP TABLE if exists projections''')
-		self.c.execute('''CREATE TABLE if not exists projections (name text, nflTeam text, position text, proj real, owner integer, week real)''')
-	def updateDBProj(self,name, nflTeam,position,proj,owner, week):
+		self.c.execute('''DROP TABLE if exists scores''')
+		self.c.execute('''CREATE TABLE if not exists scores (name text, nflTeam text, position text, proj real, score real, started int, owner integer, week real)''')
+	def updateDBProj(self,name, nflTeam,position,proj,points,started,owner, week):
 		if proj == "--":
 			proj = 0.0
 		if not USE_DECIMALS:
 			proj = round(float(proj))
-		self.c.execute("INSERT INTO projections VALUES (?,?,?,?,?,?)",(name,nflTeam,position,proj,owner,week))
+		self.c.execute("INSERT INTO scores VALUES (?,?,?,?,?,?,?,?)",(name,nflTeam,position,proj,points,started,owner,week))
 	def commitDB(self):
 		#self.c.execute('''COMMIT''')#
 		print ""
@@ -303,11 +293,8 @@ class ProjScraper:
 		allPlayers = pool.map(fetchProjPage, projUrls)
 		endTime = int(round(time.time()))
 		for lst in allPlayers:
-			for pp in lst:
-				self.updateDBProj(pp.name, pp.nflTeam, pp.position, pp.projPoints, pp.fantasyOwner, pp.week)
+			for ps in lst:
+				self.updateDBProj(ps.name, ps.nflTeam, ps.position, ps.projPoints, ps.pointsScored, ps.started, ps.fantasyOwner, ps.week)
 		print "\nProjections took " + str(endTime - startTime) + " seconds"
 
-
-
 pool = Pool(processes=MAX_THREADS)
-
