@@ -21,7 +21,16 @@ def writeHTMLOut():
 def main():
 
 	if "-help" in sys.argv:
-		print "USAGE: python scraper.py [-scrape] [-games] [-project=<teamId>]"
+		print "\n\nUSAGE: python scraper.py [-scrape] [-games] [-project=<teamId>] [-threshold] [-weeklyuserproj] [-alluserproj]"
+		print " [-scrape] : Scrape database from ESPN leagues using the LEAGUE_ID value defined in ffScraper.py "
+		print "     **NOTE** : Scraping currently only works for publicly viewable leagues"
+		print " [-games] : View league members and basic league info"
+		print " [-project=<teamId>] : view a specific team's best projected lineup"
+		print " [-threshold] : view how many 15,20,25,30,35 point scorers an owner had and how many they played against"
+		print " [-weeklyuserproj] : view all owners' comparisons between actual scores and projections (weekly basis)"
+		print " [-alluserproj] : view how users did in total against their projections (total per season)"
+		print " [-detailedproj=<teamId>] : compares each starter's score and projections by teamId (weekly basis)"
+		print "\n\n"
 		return
 	
 	#Initialization

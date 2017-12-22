@@ -333,6 +333,7 @@ def calcProjectionAccuracy(ownerId, verbosity):
 
 		tables.append(accTable)
 		totalTable.rows.append(totalRow)
+	
 	if verbosity == 0:
 		seasonTotalRow=FantasyStatRow()
 		seasonTotalRow.name=addHTMLClass("Season Total","bold")
