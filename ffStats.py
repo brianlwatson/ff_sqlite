@@ -16,8 +16,10 @@ class FantasyPlayer:
 		self.score=0
 		self.projection=0
 		self.miscStats=[] #This can serve as anything
+		self.miscInt=0
 	def printPlayer(self):
-		print self.name, self.position, self.nflTeam, "ownerID="+str(self.owner), "week="+str(self.week), "started="+str(self.started), "projection="+str(self.projection), "score="+str(self.score),"\n"
+		print (self.name, self.position, self.nflTeam, "ownerID="+str(self.owner), "week="+str(self.week), "started="+str(self.started), "projection="+str(self.projection),
+		 	"score="+str(self.score),"miscInt="+str(self.miscInt),"\n")
 	def scoreQueryToPlayer(self, query):
 		#Based on the format of a SELECT * from scores table
 		self.name=query[0]
@@ -61,7 +63,7 @@ class FantasyStatTable:
 		tableString="\n\n<h1>"+self.description+"</h1>\n"
 		tableString=tableString+"<table id="+tableName+">\n"
 		tableHeaders="  <tr>\n"
-		tableHeaders=tableHeaders+"    <th>Team Name</th>\n"
+		tableHeaders=tableHeaders+"    <th>Name</th>\n"
 		for th in self.tableHeaders:
 			tableHeaders=tableHeaders+"    <th>"+th+"</th>\n"
 		tableHeaders=tableHeaders+"  </tr>\n"
@@ -333,7 +335,7 @@ def calcProjectionAccuracy(ownerId, verbosity):
 
 		tables.append(accTable)
 		totalTable.rows.append(totalRow)
-	
+
 	if verbosity == 0:
 		seasonTotalRow=FantasyStatRow()
 		seasonTotalRow.name=addHTMLClass("Season Total","bold")
@@ -348,9 +350,46 @@ def calcProjectionAccuracy(ownerId, verbosity):
 		seasonTotalRow.name=ffScraper.leagueMembers[ownerId-1]
 		seasonTotalRow.stats=[str(seasonScored),str(seasonProjected),intToPlusMinusHTML(seasonPlusMinus)]
 		return seasonTotalRow
-		#totalRow.name=ffScraper.leagueMembers[ownerId-1]
-		#return totalRow
 
+#Calculate how each player on an owner's team did relative to projection (per season basis)
+def calcPlayerProjectionAccuracy(ownerId):
+	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	c=db.cursor()
+	starters=[]
 
+	for week in range(1,ffScraper.REG_SEASON_WEEKS+1):
+		started=[]
+		c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND week={week}".\
+			format(owner=ownerId, started=1, week=week))
+		started.append(c.fetchall())
+
+		#Get Starters, miscStat will represent the number of starts
+		for start in started[0]:
+			starter=FantasyPlayer()
+			starter.scoreQueryToPlayer(start)
+			
+			#If player is in list already (this assumes a team can't have two players with the same name and pos)
+			if any((s.name == starter.name and s.position==starter.position) for s in starters):
+				for s in starters:
+					if s.name == starter.name and s.position == starter.position:
+						s.projection=s.projection+starter.projection
+						s.score=s.score+starter.score
+						#Add up number of starts
+						s.miscInt=s.miscInt+s.started
+			#Else add player and adjust actual score and projection
+			else:
+				starter.miscInt=starter.started
+				starters.append(starter)
+
+	starterTable=FantasyStatTable()
+	starterTable.description=str("Displaying Player Projection Accuracy for "+ffScraper.leagueMembers[ownerId-1])
+	starterTable.tableHeaders=["Num Starts","Points Scored","Projected","Total +/-","Average +/- (per start)"]
+	for each in sorted(starters, key=lambda s: s.miscInt, reverse=True):
+		starterRow=FantasyStatRow()
+		starterRow.name = each.name
+		starterRow.stats=[str(each.miscInt), str(each.score), str(each.projection), intToPlusMinusHTML(each.score-each.projection), intToPlusMinusHTML((each.score-each.projection)/each.miscInt)]
+		starterTable.rows.append(starterRow)
+
+	return starterTable
 
 

@@ -39,7 +39,6 @@ def main():
 	print "Currently Configured for:", ffScraper.leagueName, "("+ffScraper.LEAGUE_ID+")"
 	leagueScraper.scrapeOwners()
 
-
 	# Scrape first for fresh data if other args are given
 	#Now have to run "python scraper.py -scrape" to enact scraping
 	if "-scrape" in sys.argv:
@@ -109,7 +108,13 @@ def main():
 			ffStats.getBestProjLineup(int(teamId))
 			break
 
-
+	proj = re.compile("-playerproj=\d+")
+	for arg in sys.argv:
+		if proj.match(arg):
+			teamId = arg.split("=")[1]
+			tables=ffStats.calcPlayerProjectionAccuracy(int(teamId))
+			htmlStrings.append(tables.getHtmlTable("playerprojacc"))
+			break
 
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:
