@@ -28,6 +28,7 @@ PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
 SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
 SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
+SETTINGS_HOME="http://games.espn.com/ffl/leaguesetup/settings?"+LEAGUE_ID
 PAGES_TO_SCRAPE=6
 # Points breakdown per team && week is at 
 # http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
@@ -43,6 +44,7 @@ scoresUrls = []
 
 # League information
 leagueName=""
+lineupConfig={}
 leagueMembers=[]
 fantasyOwners=[]
 
@@ -87,6 +89,15 @@ class LeagueScraper:
 		for team in teamNames:
 			leagueMember=team.text[0:team.text.find("(")-1]
 			leagueMembers.append(str(leagueMember))
+
+
+		settingsScrape=urllib.urlopen(SETTINGS_HOME).read()
+		soup=BeautifulSoup(settingsScrape, "html.parser")
+
+		global lineupConfig
+		rosterConfig=soup.find_all("div", class_="leagueSettingsSection")[1].find_all("tr")
+		for each in rosterConfig[3:-1]:
+			lineupConfig[str(each.find_all("td")[0].text.split("(")[1][:-1])] = int(each.find_all("td")[1].text)
 	
 	def scrapeOwners(self):
 		for teamId in range(1,len(leagueMembers)+1):

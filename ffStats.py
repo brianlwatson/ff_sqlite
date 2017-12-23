@@ -384,7 +384,7 @@ def calcPlayerProjectionAccuracy(ownerId):
 	starterTable=FantasyStatTable()
 	starterTable.description=str("Displaying Player Projection Accuracy for "+ffScraper.leagueMembers[ownerId-1])
 	starterTable.tableHeaders=["Num Starts","Points Scored","Projected","Total +/-","Average +/- (per start)"]
-	for each in sorted(starters, key=lambda s: s.miscInt, reverse=True):
+	for each in sorted(starters, key=lambda s: (s.score-s.projection), reverse=True):
 		starterRow=FantasyStatRow()
 		starterRow.name = each.name
 		starterRow.stats=[str(each.miscInt), str(each.score), str(each.projection), intToPlusMinusHTML(each.score-each.projection), intToPlusMinusHTML((each.score-each.projection)/each.miscInt)]
