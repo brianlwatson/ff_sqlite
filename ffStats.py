@@ -249,7 +249,7 @@ def getGamesForAgainst(ownerId, pointThreshold):
 	fRow.name = ffScraper.fantasyOwners[ownerId-1].teamName
 
 	#Calculate games for where started players have scored greater than or equal to threshold
-	c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND points>={points}".\
+	c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND score>={points}".\
 		format(points=pointThreshold, owner=ownerId, started=1))
 	#c.execute("SELECT * FROM scores WHERE owner=:owner AND points>:points AND started=:started", {"owner": ownerId, "points": pointThreshold, "started": 1})
 	gamesFor.append(c.fetchall())
@@ -257,7 +257,7 @@ def getGamesForAgainst(ownerId, pointThreshold):
 	#Query for games in which ownerID's opponent started a player that met or surpassed the threshold
 	for week in range(1, ffScraper.REG_SEASON_WEEKS+1):
 		oppID=ffScraper.fantasyOwners[ownerId-1].opponentIDs[week-1]
-		c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND points>={points} AND week={week}".\
+		c.execute("SELECT * FROM scores WHERE owner={owner} AND started={started} AND score>={points} AND week={week}".\
 			format(points=pointThreshold, owner=oppID, started=1, week=week))
 		gamesAgainst.append(c.fetchall())
 
