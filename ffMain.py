@@ -42,8 +42,7 @@ def main():
 	# Scrape first for fresh data if other args are given
 	#Now have to run "python scraper.py -scrape" to enact scraping
 	if "-scrape" in sys.argv:
-		# db = sqlite3.connect(filter(str.isalnum, str(leagueName))+".sqlite")
-		db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+		db = sqlite3.connect(ffScraper.DB_NAME)
 
 		#Scores
 		projScraper=ffScraper.ProjScraper(db)

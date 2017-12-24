@@ -24,6 +24,7 @@ USE_DECIMALS=0
 CURRENT_YEAR="2017"
 
 # Scrape Info
+DB_NAME=LEAGUE_ID.split("=")[-1]+".sqlite"
 PROJ_HOME="http://games.espn.com/ffl/tools/projections?"+LEAGUE_ID
 SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR

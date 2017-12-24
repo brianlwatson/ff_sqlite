@@ -208,7 +208,7 @@ class TeamProjComposition:
 			print name + ", " + str(projScore)
 
 def getBestProjLineup(ownerId):
-	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	db = sqlite3.connect(ffScraper.DB_NAME)
 	c=db.cursor()
 	result = []
 	# for ownerId in range(1,len(fantasyOwners)+1):
@@ -238,7 +238,7 @@ def getBestProjLineup(ownerId):
 		team.printBestProjTeam()
 
 def getGamesForAgainst(ownerId, pointThreshold):
-	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	db = sqlite3.connect(ffScraper.DB_NAME)
 	c=db.cursor()
 	gamesAgainst=[]
 	gamesFor=[]
@@ -272,7 +272,7 @@ def getGamesForAgainst(ownerId, pointThreshold):
 
 #Calculate 
 def calcProjectionAccuracy(ownerId, verbosity):
-	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	db = sqlite3.connect(ffScraper.DB_NAME)
 	c=db.cursor()
 
 	tables=[]
@@ -353,7 +353,7 @@ def calcProjectionAccuracy(ownerId, verbosity):
 
 #Calculate how each player on an owner's team did relative to projection (per season basis)
 def calcPlayerProjectionAccuracy(ownerId):
-	db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+	db = sqlite3.connect(ffScraper.DB_NAME)
 	c=db.cursor()
 	starters=[]
 
