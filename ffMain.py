@@ -30,6 +30,7 @@ def main():
 		print " [-weeklyuserproj] : view all owners' comparisons between actual scores and projections (weekly basis)"
 		print " [-alluserproj] : view how users did in total against their projections (total per season)"
 		print " [-detailedproj=<teamId>] : compares each starter's score and projections by teamId (weekly basis)"
+		print " [-draftrecap] : view a summary of the fantasy draft picks"
 		print "\n\n"
 		return
 	
@@ -115,8 +116,20 @@ def main():
 			htmlStrings.append(tables.getHtmlTable("playerprojacc"))
 			break
 
+	if "-draftrecap" in sys.argv:
+		db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+
+		draftRecap=ffScraper.DraftRecapScraper(db)
+		myHtml = draftRecap.scrapeDraftRecap()
+		for string in myHtml:
+			htmlStrings.append(string)
+
+		db.commit()
+		db.close()
+
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:
+		print "Writing to HTML...."
 		writeHTMLOut()
 
 if __name__ == "__main__":

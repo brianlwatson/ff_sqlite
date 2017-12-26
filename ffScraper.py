@@ -309,4 +309,50 @@ class ProjScraper:
 				self.updateDBProj(ps.name, ps.nflTeam, ps.position, ps.projPoints, ps.pointsScored, ps.started, ps.fantasyOwner, ps.week)
 		print "\nProjections took " + str(endTime - startTime) + " seconds"
 
+class DraftRecapScraper:
+	def __init__(self, db):
+		self.c=db.cursor()
+		self.c.execute('''DROP TABLE if exists draftrecap''')
+		self.c.execute('''CREATE TABLE if not exists draftrecap (round int, overallPick int, name text, nflTeam text, position text, owner integer)''')
+	def updateDBDraft(self, rnd, overallPick, name, nflTeam, position, owner):
+		self.c.execute("INSERT INTO draftrecap VALUES (?,?,?,?,?,?)",(rnd, overallPick, name, nflTeam, position, owner))
+	def scrapeDraftRecap(self):
+		htmlStrings = []
+		maxOwner = 0
+		recapUrl = "http://games.espn.com/ffl/tools/draftrecap?" + LEAGUE_ID
+		recapScrape=urllib.urlopen(recapUrl).read()
+		soup=BeautifulSoup(recapScrape, "html.parser")
+		picks = soup.find_all("tr", class_="tableBody")
+		for player in picks:
+			ownerLeague = player.find_all("a", href=re.compile("clubhouse"))[0]["href"]
+			owner = ownerLeague.split("&")[1].split("=")[-1]
+
+			pick = ""
+			count = 0
+			for c in player.text:
+				if c.isdigit():
+					pick += c
+					count += 1
+				else:
+					break
+
+			playerName = player.text[count:].split(",")[0].replace("*", "")
+
+			if "D/ST" in playerName:
+				playerNFL = playerName.split(" ")[0]
+				playerPos = "D/ST"
+				playerName = playerName.split(" ")[0] + " D/ST"
+			else:
+				playerInfo = player.find_all("td")[1].text.replace(u'\xa0', u' ')
+				playerNFL = playerInfo.split(" ")[-2]
+				playerPos = playerInfo.split(" ")[-1]
+
+			# TODO: Fix round count
+			rnd = 0
+			# print pick + ". " +playerName + " (" + playerPos + ", " + playerNFL + ")" + ", Owner: " + owner
+			html = "<span>" + pick + ". " +playerName + " (" + playerPos + ", " + playerNFL + ")" + ", Owner: " + owner + "</span><br>"
+			self.updateDBDraft(rnd, pick, playerName, playerNFL, playerPos, owner)
+			htmlStrings.append(html)
+		return htmlStrings
+
 pool = Pool(processes=MAX_THREADS)
