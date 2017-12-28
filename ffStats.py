@@ -404,12 +404,16 @@ def draftAnalysis(ownerId):
 	draftedPlayers=[]
 
 	#drafted will be a dictionary with key of player name and value of POS+Ranking (Ex: RB2)
+	c.execute("SELECT DISTINCT name,position,nflTeam FROM scores")
+
 
 	c.execute("SELECT * FROM draftrecap WHERE owner={owner}".\
 		format(owner=ownerId))
 	drafted.append(c.fetchall())
 
 	drafted=drafted[0]
+
+
 
 	for draftee in drafted:
 		player=FantasyPlayer()
@@ -420,6 +424,8 @@ def draftAnalysis(ownerId):
 		player.printPlayer()
 
 		#For each player, query for scores.
+
+
 
 
 

@@ -55,7 +55,7 @@ def main():
 		scoreScraper.getScoresUrls()
 		scoreScraper.parallelize()
 		scoreScraper.createTotalTables()
-		
+
 		db.commit()
 		db.close()
 
@@ -132,8 +132,7 @@ def main():
 	for arg in sys.argv:
 		if proj.match(arg):
 			teamId = arg.split("=")[1]
-			#ffStats.draftAnalysis(teamId)
-			ffStats.createTotalTables()
+			ffStats.draftAnalysis(teamId)
 
 
 	#Write out to HTML if stats have been added to the html list

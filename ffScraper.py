@@ -181,16 +181,16 @@ class ScoreScraper:
 			pName=each[0]
 			pPos=each[1]
 			pTeam=each[2]
-			pQuery=(pName,pPos,pTeam)
-			self.c.execute("SELECT * FROM scores WHERE name =? AND position=? AND nflTeam=?", pQuery)
+			pQuery=(pName,pTeam,pPos)
+			self.c.execute("SELECT * FROM scores WHERE name=? AND nflTeam=? AND position=?", pQuery)
 
 			pQueries=self.c.fetchall()
-			#print len(pQueries), pQueries
 			pTotal=0
+
 			for res in pQueries:
 				pTotal=pTotal+res[4]
 
-			totalQuery=each+(pTotal,)
+			totalQuery=pQuery+(pTotal,)
 			self.c.execute("INSERT INTO totals VALUES (?,?,?,?)",(totalQuery))
 
 
