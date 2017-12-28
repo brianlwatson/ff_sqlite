@@ -393,3 +393,38 @@ def calcPlayerProjectionAccuracy(ownerId):
 	return starterTable
 
 
+
+#TODO: Finish this after the total tables is done
+def draftAnalysis(ownerId):
+	#Get name of all players that were drafted
+	db = sqlite3.connect(ffScraper.DB_NAME)
+	c=db.cursor()
+	drafted=[]
+	draftRanking={}
+	draftedPlayers=[]
+
+	#drafted will be a dictionary with key of player name and value of POS+Ranking (Ex: RB2)
+
+	c.execute("SELECT * FROM draftrecap WHERE owner={owner}".\
+		format(owner=ownerId))
+	drafted.append(c.fetchall())
+
+	drafted=drafted[0]
+
+	for draftee in drafted:
+		player=FantasyPlayer()
+		player.name=str(draftee[2])
+		player.nflTeam=str(draftee[3])
+		player.position=str(draftee[4])
+		player.owner=str(draftee[5])
+		player.printPlayer()
+
+		#For each player, query for scores.
+
+
+
+
+
+
+
+

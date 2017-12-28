@@ -54,7 +54,8 @@ def main():
 		scoreScraper=ffScraper.ScoreScraper(db)
 		scoreScraper.getScoresUrls()
 		scoreScraper.parallelize()
-
+		scoreScraper.createTotalTables()
+		
 		db.commit()
 		db.close()
 
@@ -117,7 +118,7 @@ def main():
 			break
 
 	if "-draftrecap" in sys.argv:
-		db = sqlite3.connect(ffScraper.LEAGUE_ID.split("=")[-1]+".sqlite")
+		db = sqlite3.connect(ffScraper.DB_NAME)
 
 		draftRecap=ffScraper.DraftRecapScraper(db)
 		myHtml = draftRecap.scrapeDraftRecap()
@@ -126,6 +127,14 @@ def main():
 
 		db.commit()
 		db.close()
+
+	proj = re.compile("-draft=\d+")
+	for arg in sys.argv:
+		if proj.match(arg):
+			teamId = arg.split("=")[1]
+			#ffStats.draftAnalysis(teamId)
+			ffStats.createTotalTables()
+
 
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:

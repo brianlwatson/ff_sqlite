@@ -167,6 +167,33 @@ class ScoreScraper:
 				self.updateDBScores(ps.name, ps.nflTeam, ps.position, ps.pointsScored, ps.started, ps.fantasyOwner, ps.week)
 		print "\nScores took " + str(endTime - startTime) + " seconds"
 
+
+	def createTotalTables(self):
+		self.c.execute('''DROP TABLE if exists totals''')
+		self.c.execute('''CREATE TABLE if not exists totals (name text, nflTeam text, position text, totalScore real)''')
+
+		self.c.execute("SELECT DISTINCT name,position,nflTeam FROM scores")
+		players=[]
+		players.append(self.c.fetchall())
+
+		#For each distinct player, query and get their total points
+		for each in players[0]:
+			pName=each[0]
+			pPos=each[1]
+			pTeam=each[2]
+			pQuery=(pName,pPos,pTeam)
+			self.c.execute("SELECT * FROM scores WHERE name =? AND position=? AND nflTeam=?", pQuery)
+
+			pQueries=self.c.fetchall()
+			#print len(pQueries), pQueries
+			pTotal=0
+			for res in pQueries:
+				pTotal=pTotal+res[4]
+
+			totalQuery=each+(pTotal,)
+			self.c.execute("INSERT INTO totals VALUES (?,?,?,?)",(totalQuery))
+
+
 def fetchScoresPage(scoresUrl):
 	sys.stdout.write('.')
 	sys.stdout.flush()
