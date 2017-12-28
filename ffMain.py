@@ -1,13 +1,14 @@
 import sys
 import sqlite3
 import re
-
+import os
 import ffScraper
 import ffStats
 
 htmlStrings=[]
 
 def writeHTMLOut():
+	print "Writing out to ", filter(str.isalnum, str(ffScraper.leagueName))+".html"
 	htmlDoc="<html>\n  <head><title>"+str(ffScraper.leagueName)+"</title><link rel=\"stylesheet\" type=\"text/css\" href=\"fantasy.css\"></head>"
 	for htmlOut in htmlStrings:
 		htmlDoc=htmlDoc+htmlOut
@@ -34,16 +35,25 @@ def main():
 		print "\n\n"
 		return
 	
-	#Initialization
-	leagueScraper=ffScraper.LeagueScraper()
-	leagueScraper.getLeagueInfo()
-	print "Currently Configured for:", ffScraper.leagueName, "("+ffScraper.LEAGUE_ID+")"
-	leagueScraper.scrapeOwners()
+	#Load info (after scrape)
+	#Everything that the league needs should be loaded up in these functions
+	#Scraping should only have to be done 1 time. No scrape requests should be sent out after initial scrape
+	db = sqlite3.connect(ffScraper.DB_NAME)
+	leagueScraper=ffScraper.LeagueScraper(db)
+	leagueScraper.loadLeagueInfo()
+	leagueScraper.loadOwners()
+	db.close()
+
 
 	# Scrape first for fresh data if other args are given
-	#Now have to run "python scraper.py -scrape" to enact scraping
-	if "-scrape" in sys.argv:
+	# Now have to run "python scraper.py -scrape" to enact scraping 
+	# This will run if no database is found or if this is a first time run
+	if "-scrape" in sys.argv or not os.path.isfile(ffScraper.DB_NAME):
 		db = sqlite3.connect(ffScraper.DB_NAME)
+
+		leagueScraper=ffScraper.LeagueScraper(db)
+		leagueScraper.getLeagueInfo()
+		leagueScraper.scrapeOwners()
 
 		#Scores
 		projScraper=ffScraper.ProjScraper(db)
@@ -54,7 +64,13 @@ def main():
 		scoreScraper=ffScraper.ScoreScraper(db)
 		scoreScraper.getScoresUrls()
 		scoreScraper.parallelize()
+
+		#Get Totals
 		scoreScraper.createTotalTables()
+
+		#Draft Recap
+		draftRecap=ffScraper.DraftRecapScraper(db)
+		myHtml = draftRecap.scrapeDraftRecap()
 
 		db.commit()
 		db.close()
@@ -117,6 +133,9 @@ def main():
 			htmlStrings.append(tables.getHtmlTable("playerprojacc"))
 			break
 
+	#FIXME - TYLARRR let's make it so that this doesn't send out any requests.
+	# Draftrecap table is now loaded in the scrape, let's use that to get this info
+	#  rather than send out scrape requests after the initial scrape
 	if "-draftrecap" in sys.argv:
 		db = sqlite3.connect(ffScraper.DB_NAME)
 

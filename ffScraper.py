@@ -73,12 +73,14 @@ class FantasyOwner:
 		self.losses=0
 		self.ties=0
 	def printOwner(self):
-		print "Team: ",self.teamName, " (teamId="+str(leagueMembers.index(self.teamName)+1)+")"
+		print "Team: ",self.teamName, str(self.wins)+"-"+str(self.losses)+"-"+str(self.ties), " (teamId="+str(leagueMembers.index(self.teamName)+1)+")"
 		for i in range (1, REG_SEASON_WEEKS+1):
 			print "Week:",i, str(self.scores[i-1])+"-"+str(self.oppScores[i-1]), " vs. ", self.opponents[i-1], " (teamId="+str(self.opponentIDs[i-1])+")"
 
 # League scraping
 class LeagueScraper:
+	def __init__(self, db):
+		self.c=db.cursor()
 	def getLeagueInfo(self):
 		standingsScrape=urllib.urlopen(STANDINGS_HOME).read()
 		soup=BeautifulSoup(standingsScrape, "html.parser")
@@ -86,21 +88,62 @@ class LeagueScraper:
 		#Scrape League Name and League members (in order of their ownerID)
 		global leagueName
 		leagueName=str(soup.find_all("div", class_="nav-main-breadcrumbs")[0].find_all("a", href=re.compile("leagueoffice"))[0].text)
+		self.c.execute('''DROP TABLE if exists leagueMisc''')
+		self.c.execute('''CREATE TABLE if not exists leagueMisc (name text)''')
+		self.c.execute("INSERT INTO leagueMisc VALUES (?)", (str(leagueName),))
+
+
 		teamNames=soup.find_all("div", class_="games-nav")[0].find_all("a", href=re.compile("teamId"))
 		for team in teamNames:
 			leagueMember=team.text[0:team.text.find("(")-1]
 			leagueMembers.append(str(leagueMember))
 
-
+		#Scrape Number of starters at each position
 		settingsScrape=urllib.urlopen(SETTINGS_HOME).read()
 		soup=BeautifulSoup(settingsScrape, "html.parser")
+
+		#Get number of starters for each position in the league and write to lineupConfig sqlite table
+		self.c.execute('''DROP TABLE if exists lineupConfig''')
+		self.c.execute('''CREATE TABLE if not exists lineupConfig (position text, starters int)''')
 
 		global lineupConfig
 		rosterConfig=soup.find_all("div", class_="leagueSettingsSection")[1].find_all("tr")
 		for each in rosterConfig[3:-1]:
 			lineupConfig[str(each.find_all("td")[0].text.split("(")[1][:-1])] = int(each.find_all("td")[1].text)
+			self.c.execute("INSERT INTO lineupConfig VALUES (?,?)",(str(each.find_all("td")[0].text.split("(")[1][:-1]),int(each.find_all("td")[1].text)))
+
+
+	def loadLeagueInfo(self):
+		self.c.execute('''SELECT * from lineupConfig''')
+		lineup={}
+
+		for each in self.c.fetchall():
+			lineup[str(each[0])]=each[1]
+
+		global lineupConfig
+		global leagueMembers
+		global leagueName
+
+		lineupConfig=lineup
+
+		members=[]
+		self.c.execute('''SELECT name from owners''')
+		for each in self.c.fetchall():
+			members.append(str(each[0]))
 	
+
+		self.c.execute('''SELECT * from leagueMisc''')
+		leagueName=self.c.fetchall()[0][0]
+		leagueMembers=members
+
+
+
 	def scrapeOwners(self):
+		self.c.execute('''CREATE TABLE if not exists owners (name text, wins int, losses int, ties int)''')
+
+		for week in range(1, REG_SEASON_WEEKS+1):
+			self.c.execute("ALTER TABLE owners ADD COLUMN "+"Week"+str(week)+"_Recap text")
+
 		for teamId in range(1,len(leagueMembers)+1):
 			scheduleScrape=urllib.urlopen(SCHEDULE_HOME+"&teamId="+str(teamId))
 			soup=BeautifulSoup(scheduleScrape, "html.parser")
@@ -133,8 +176,42 @@ class LeagueScraper:
 					owner.opponents.append(trData[4][0:trData[4].find("(")-1])
 					owner.opponentIDs.append( leagueMembers.index(owner.opponents[-1])+1 )
 			fantasyOwners.append(owner)
+
+			ownerTuple= (owner.teamName, owner.wins, owner.losses, owner.ties)
+			for idx,each in enumerate(owner.scores):
+				weekRecap=str(each)+str("-")+str(owner.oppScores[idx])+str(" oppId=")+str(owner.opponentIDs[idx])
+				ownerTuple=ownerTuple+(weekRecap,)
+			self.c.execute(("INSERT INTO owners VALUES (?,?,?,?"+str(",?"*(REG_SEASON_WEEKS))+")"),ownerTuple)
+
 			#Capture playoff data
 			#if "Round" in len(each.text.split("\n")):
+
+	def loadOwners(self):
+		self.c.execute("SELECT * from owners")
+		global fantasyOwners
+		temp=[]
+		fOwners=[]
+		temp.append(self.c.fetchall())
+
+		for owner in temp[0]:
+			fOwner=FantasyOwner()
+			fOwner.teamName=owner[0]
+			fOwner.wins=owner[1]
+			fOwner.losses=owner[2]
+			fOwner.ties=owner[3]
+			for i in range(4,4+REG_SEASON_WEEKS):
+				score=str(owner[i].split(" ")[0])
+				oppId=str(owner[i].split(" ")[1]).split("=")[-1]
+				myScore=score.split("-")[0]
+				oppScore=score.split("-")[-1]
+				fOwner.opponentIDs.append(oppId)
+				fOwner.scores.append(float(myScore))
+				fOwner.oppScores.append(float(oppScore))
+				fOwner.opponents.append(leagueMembers[int(oppId)-1])
+			fOwners.append(fOwner)
+
+		fantasyOwners=fOwners
+
 
 # Score retrieval
 class ScoreScraper:
