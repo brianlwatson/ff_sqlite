@@ -11,12 +11,12 @@ import operator
 
 # Leagues
 # Stewart Family Bonding
-#LEAGUE_ID="leagueId=523659"
-#REG_SEASON_WEEKS=13
+LEAGUE_ID="leagueId=523659"
+REG_SEASON_WEEKS=13
 
 # Brian's Bimbos
-LEAGUE_ID="leagueId=1781003"
-REG_SEASON_WEEKS=12
+#LEAGUE_ID="leagueId=1781003"
+#REG_SEASON_WEEKS=12
 
 #Allow for scraping of decimal values
 USE_DECIMALS=0

@@ -17,9 +17,10 @@ class FantasyPlayer:
 		self.projection=0
 		self.miscStats=[] #This can serve as anything
 		self.miscInt=0
+		self.miscStr=""
 	def printPlayer(self):
 		print (self.name, self.position, self.nflTeam, "ownerID="+str(self.owner), "week="+str(self.week), "started="+str(self.started), "projection="+str(self.projection),
-		 	"score="+str(self.score),"miscInt="+str(self.miscInt),"\n")
+		 	"score="+str(self.score),"miscInt="+str(self.miscInt),"miscStr="+self.miscStr,"\n")
 	def scoreQueryToPlayer(self, query):
 		#Based on the format of a SELECT * from scores table
 		self.name=query[0]
@@ -394,7 +395,6 @@ def calcPlayerProjectionAccuracy(ownerId):
 
 
 
-#TODO: Finish this after the total tables is done
 def draftAnalysis(ownerId):
 	#Get name of all players that were drafted
 	db = sqlite3.connect(ffScraper.DB_NAME)
@@ -403,33 +403,43 @@ def draftAnalysis(ownerId):
 	draftRanking={}
 	draftedPlayers=[]
 
+	#There are some unused positions in here, including the FLEX, ignore for now
+	# Value is the list of totals (in tuple), where key is the position
+	for pos in ffScraper.lineupConfig:
+		c.execute("SELECT * from totals WHERE position=?", (pos,))
+		draftRanking[pos]=sorted([x for x in c.fetchall()], key = lambda x:x[3], reverse=True)
+
 	#drafted will be a dictionary with key of player name and value of POS+Ranking (Ex: RB2)
-	c.execute("SELECT DISTINCT name,position,nflTeam FROM scores")
-
-
-	c.execute("SELECT * FROM draftrecap WHERE owner={owner}".\
-		format(owner=ownerId))
+	c.execute("SELECT * FROM draftrecap WHERE owner=?", (ownerId,))
 	drafted.append(c.fetchall())
 
+	draftTable=FantasyStatTable()
+	draftTable.description=str("Regular Season Draft Results for ")+ str(ffScraper.leagueMembers[(int(ownerId)-1)])
+	draftTable.tableHeaders=[ "Round", "# Pick", "Regular Season Ranking"]
+
 	drafted=drafted[0]
-
-
-
 	for draftee in drafted:
 		player=FantasyPlayer()
+		pickNumber=str(draftee[1])
 		player.name=str(draftee[2])
 		player.nflTeam=str(draftee[3])
 		player.position=str(draftee[4])
 		player.owner=str(draftee[5])
+
+		try:
+			ranking=str([p[0] for p in draftRanking[player.position]].index(player.name)+1)
+		except:
+			ranking=999
+	
+		player.miscStr=player.position+str(ranking)
+		#print player.name, player.miscStr
 		player.printPlayer()
+		draftRow=FantasyStatRow()
+		draftRow.name=player.name
+		draftRow.stats=[str(int(pickNumber)/len(ffScraper.leagueMembers)+1), pickNumber, player.miscStr] 
+		draftTable.rows.append(draftRow)
 
-		#For each player, query for scores.
-
-
-
-
-
-
+	return draftTable
 
 
 

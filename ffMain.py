@@ -32,18 +32,9 @@ def main():
 		print " [-alluserproj] : view how users did in total against their projections (total per season)"
 		print " [-detailedproj=<teamId>] : compares each starter's score and projections by teamId (weekly basis)"
 		print " [-draftrecap] : view a summary of the fantasy draft picks"
+		print " [-draft=<teamId>] : view how a player's drafted players performed in regular season"
 		print "\n\n"
 		return
-	
-	#Load info (after scrape)
-	#Everything that the league needs should be loaded up in these functions
-	#Scraping should only have to be done 1 time. No scrape requests should be sent out after initial scrape
-	db = sqlite3.connect(ffScraper.DB_NAME)
-	leagueScraper=ffScraper.LeagueScraper(db)
-	leagueScraper.loadLeagueInfo()
-	leagueScraper.loadOwners()
-	db.close()
-
 
 	# Scrape first for fresh data if other args are given
 	# Now have to run "python scraper.py -scrape" to enact scraping 
@@ -74,6 +65,16 @@ def main():
 
 		db.commit()
 		db.close()
+
+	#Load info (after scrape)
+	#Everything that the league needs should be loaded up in these functions
+	#Scraping should only have to be done 1 time. No scrape requests should be sent out after initial scrape
+	db = sqlite3.connect(ffScraper.DB_NAME)
+	leagueScraper=ffScraper.LeagueScraper(db)
+	leagueScraper.loadLeagueInfo()
+	leagueScraper.loadOwners()
+	db.close()
+
 
 	# print game outcomes
 	if "-games" in sys.argv:
@@ -152,6 +153,7 @@ def main():
 		if proj.match(arg):
 			teamId = arg.split("=")[1]
 			ffStats.draftAnalysis(teamId)
+			htmlStrings.append(ffStats.draftAnalysis(teamId).getHtmlTable("draftReg"+teamId))
 
 
 	#Write out to HTML if stats have been added to the html list
