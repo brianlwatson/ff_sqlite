@@ -417,9 +417,9 @@ class DraftRecapScraper:
 	def __init__(self, db):
 		self.c=db.cursor()
 		self.c.execute('''DROP TABLE if exists draftrecap''')
-		self.c.execute('''CREATE TABLE if not exists draftrecap (round int, overallPick int, name text, nflTeam text, position text, owner integer)''')
-	def updateDBDraft(self, rnd, overallPick, name, nflTeam, position, owner):
-		self.c.execute("INSERT INTO draftrecap VALUES (?,?,?,?,?,?)",(rnd, overallPick, name, nflTeam, position, owner))
+		self.c.execute('''CREATE TABLE if not exists draftrecap (round int, overallPick int, name text, nflTeam text, position text, owner integer, posRank integer)''')
+	def updateDBDraft(self, rnd, overallPick, name, nflTeam, position, owner, posRank):
+		self.c.execute("INSERT INTO draftrecap VALUES (?,?,?,?,?,?,?)",(rnd, overallPick, name, nflTeam, position, owner, posRank))
 	def scrapeDraftRecap(self):
 		htmlStrings = []
 		maxOwner = 0
@@ -427,6 +427,11 @@ class DraftRecapScraper:
 		recapScrape=urllib.urlopen(recapUrl).read()
 		soup=BeautifulSoup(recapScrape, "html.parser")
 		picks = soup.find_all("tr", class_="tableBody")
+
+		numPicked={}
+		for pos in lineupConfig:
+			numPicked[pos]=0
+
 		for player in picks:
 			ownerLeague = player.find_all("a", href=re.compile("clubhouse"))[0]["href"]
 			owner = ownerLeague.split("&")[1].split("=")[-1]
@@ -453,9 +458,10 @@ class DraftRecapScraper:
 
 			# TODO: Fix round count
 			rnd = 0
+			numPicked[playerPos]=numPicked[playerPos]+1
 			# print pick + ". " +playerName + " (" + playerPos + ", " + playerNFL + ")" + ", Owner: " + owner
 			html = "<span>" + pick + ". " +playerName + " (" + playerPos + ", " + playerNFL + ")" + ", Owner: " + owner + "</span><br>"
-			self.updateDBDraft(rnd, pick, playerName, playerNFL, playerPos, owner)
+			self.updateDBDraft(rnd, pick, playerName, playerNFL, playerPos, owner, numPicked[playerPos])
 			htmlStrings.append(html)
 		return htmlStrings
 
