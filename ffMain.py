@@ -33,6 +33,7 @@ def main():
 		print " [-detailedproj=<teamId>] : compares each starter's score and projections by teamId (weekly basis)"
 		print " [-draftrecap] : view a summary of the fantasy draft picks"
 		print " [-draft=<teamId>] : view how a player's drafted players performed in regular season"
+		print " [-alldraft] : view all players' draft and each players' end of season position"
 		print "\n\n"
 		return
 
@@ -155,10 +156,13 @@ def main():
 			ffStats.draftAnalysis(teamId)
 			htmlStrings.append(ffStats.draftAnalysis(teamId).getHtmlTable("draftReg"+teamId))
 
+	if "-alldraft" in sys.argv:
+		for each in range(1,len(ffScraper.leagueMembers)+1):
+			ffStats.draftAnalysis(each)
+			htmlStrings.append(ffStats.draftAnalysis(each).getHtmlTable("draftReg"+str(each)))
 
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:
-		print "Writing to HTML...."
 		writeHTMLOut()
 
 if __name__ == "__main__":

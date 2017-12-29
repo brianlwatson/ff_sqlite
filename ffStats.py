@@ -415,7 +415,7 @@ def draftAnalysis(ownerId):
 
 	draftTable=FantasyStatTable()
 	draftTable.description=str("Regular Season Draft Results for ")+ str(ffScraper.leagueMembers[(int(ownerId)-1)])
-	draftTable.tableHeaders=[ "Round", "# Pick", "Regular Season Ranking"]
+	draftTable.tableHeaders=[ "Round", "Overall Pick", "Position #", "Regular Season Ranking"]
 
 	drafted=drafted[0]
 	for draftee in drafted:
@@ -425,20 +425,20 @@ def draftAnalysis(ownerId):
 		player.nflTeam=str(draftee[3])
 		player.position=str(draftee[4])
 		player.owner=str(draftee[5])
+		posPick=str(draftee[6])
 
 		try:
 			ranking=str([p[0] for p in draftRanking[player.position]].index(player.name)+1)
 		except:
 			ranking=999
 	
-		player.miscStr=player.position+str(ranking)
+		player.miscStr=player.position+" "+str(ranking)
+		posPick=player.position+" "+posPick
 		#print player.name, player.miscStr
-		player.printPlayer()
 		draftRow=FantasyStatRow()
 		draftRow.name=player.name
-		draftRow.stats=[str(int(pickNumber)/len(ffScraper.leagueMembers)+1), pickNumber, player.miscStr] 
+		draftRow.stats=[str(int(pickNumber)/len(ffScraper.leagueMembers)+1), pickNumber, posPick, player.miscStr,] 
 		draftTable.rows.append(draftRow)
-
 	return draftTable
 
 
