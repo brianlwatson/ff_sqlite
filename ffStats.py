@@ -38,6 +38,7 @@ def intToPlusMinusHTML(value):
 	else:
 		return str("<span class=\"negValue\">"+str(value)+"</span>")
 
+
 def addHTMLClass(value, spanClass):
 	return str("<span class=\""+spanClass+"\">"+value+"</span>")
 
@@ -460,7 +461,7 @@ def singleOptimization(ownerId):
 
 	weekTables=[]
 
-	for week in range(2,3):#ffScraper.REG_SEASON_WEEKS+1):
+	for week in range(1,ffScraper.REG_SEASON_WEEKS+1):
 		starterTable=FantasyStatTable()
 		starterTable.description="Single Player Optimization for "+ffScraper.leagueMembers[ownerId-1]+" in Week "+str(week)
 		starterTable.tableHeaders=["Score", "Optimized","Adjusted Score"]
@@ -489,7 +490,7 @@ def singleOptimization(ownerId):
 		toReplace=FantasyPlayer()
 		replacePlayer=FantasyPlayer()
 		for position in ffScraper.lineupConfig:
-			if position != "BE" and ffScraper.lineupConfig[position]>0:
+			if position != "BE" and position != "IR" and ffScraper.lineupConfig[position]>0:
 				#get player in positionStarters with lowest score, replace with highest scorer from positionBench
 				# and calculate the increase
 				posStarters=sorted([x for x in starters if x.position ==position],key=lambda x: x.score, reverse=True)[0:ffScraper.lineupConfig[position]]
@@ -514,23 +515,23 @@ def singleOptimization(ownerId):
 		#print "Replace ", toReplace.name, " with ", replacePlayer.name, "in week",week, "increase",increase
 		if increase > 0:
 			newstarters[newstarters.index(toReplace)]=replacePlayer
-			print "OLD"
-			for each in starters:
-				each.printPlayer()
-			#print "\n\nNEW"
-			#for each in newstarters:
-			#	each.printPlayer()
-
-
-
 
 			for i in range(0,len(starters)):
-
 				optimizeRow=FantasyStatRow()
+
+				if starters[i].name != newstarters[i].name:
+					starters[i].name = addHTMLClass(starters[i].name, "negValue")
+					starters[i].miscInt = addHTMLClass(str(starters[i].score), "negValue")
+					newstarters[i].name = addHTMLClass(newstarters[i].name, "posValue")
+					newstarters[i].miscInt = addHTMLClass(str(newstarters[i].score), "posValue")
+				else:
+					starters[i].miscInt=starters[i].score
+					newstarters[i].miscInt=newstarters[i].score
+
 				optimizeRow.name=starters[i].name
-				optimizeRow.stats.append(str(starters[i].score))
+				optimizeRow.stats.append(str(starters[i].miscInt))
 				optimizeRow.stats.append(newstarters[i].name)
-				optimizeRow.stats.append(str(newstarters[i].score))
+				optimizeRow.stats.append(str(newstarters[i].miscInt))
 				starterTable.rows.append(optimizeRow)
 
 			totalRow=FantasyStatRow()

@@ -30,7 +30,7 @@ SCORES_HOME="http://games.espn.com/ffl/leaders?"+LEAGUE_ID
 STANDINGS_HOME="http://games.espn.com/ffl/standings?"+LEAGUE_ID+"&seasonId="+CURRENT_YEAR
 SCHEDULE_HOME="http://games.espn.com/ffl/schedule?"+LEAGUE_ID #+"&teamId=XX"
 SETTINGS_HOME="http://games.espn.com/ffl/leaguesetup/settings?"+LEAGUE_ID
-PAGES_TO_SCRAPE=6
+PAGES_TO_SCRAPE=20
 # Points breakdown per team && week is at 
 # http://games.espn.com/ffl/clubhouse?leagueId=1781003&teamId=6&scoringPeriodId=15&view=stats
 
