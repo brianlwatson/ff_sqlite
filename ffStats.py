@@ -454,5 +454,98 @@ def draftAnalysis(ownerId):
 	return draftTable
 
 
+def singleOptimization(ownerId):
+	db = sqlite3.connect(ffScraper.DB_NAME)
+	c=db.cursor()
+
+	weekTables=[]
+
+	for week in range(2,3):#ffScraper.REG_SEASON_WEEKS+1):
+		starterTable=FantasyStatTable()
+		starterTable.description="Single Player Optimization for "+ffScraper.leagueMembers[ownerId-1]+" in Week "+str(week)
+		starterTable.tableHeaders=["Score", "Optimized","Adjusted Score"]
+
+		starters=[]
+		benched=[]
+
+		c.execute("SELECT * FROM scores WHERE owner=? AND week=? AND started=?", (ownerId,week,1))
+		for starter in c.fetchall():
+			player=FantasyPlayer()
+			player.scoreQueryToPlayer(starter)
+			starters.append(player)
+
+		c.execute("SELECT * FROM scores WHERE owner=? AND week=? AND started=?", (ownerId,week,0))
+		for bench in c.fetchall():
+			player=FantasyPlayer()
+			player.scoreQueryToPlayer(bench)
+			benched.append(player)
+
+		#Find greatest difference between starters and non-starters
+		# Once found, remove the item in newstarters list with the optimized value
+		increase=0
+		newstarters=[]
+		newstarters.extend(starters)
+		compared=[]
+		toReplace=FantasyPlayer()
+		replacePlayer=FantasyPlayer()
+		for position in ffScraper.lineupConfig:
+			if position != "BE" and ffScraper.lineupConfig[position]>0:
+				#get player in positionStarters with lowest score, replace with highest scorer from positionBench
+				# and calculate the increase
+				posStarters=sorted([x for x in starters if x.position ==position],key=lambda x: x.score, reverse=True)[0:ffScraper.lineupConfig[position]]
+				posBench=sorted([x for x in benched if x.position ==position],key=lambda x:x.score, reverse=True)
+
+				if len(posBench) > 0 and len(posStarters) > 0:
+					if(posBench[0].score-posStarters[-1].score) > increase:
+						increase = posBench[0].score-posStarters[-1].score
+						toReplace=posStarters[-1]
+						replacePlayer=posBench[0]
+				compared.extend(posStarters)
+
+		#Now check flex differences
+		posStarters=sorted([x for x in starters if x not in compared],key=lambda x: x.score, reverse=True)
+		posBench=sorted([x for x in benched if x.position in ["RB","WR","TE"]],key=lambda x:x.score, reverse=True)
+		if len(posBench) > 0 and len(posStarters) > 0:
+			if(posBench[0].score-posStarters[-1].score) > increase:
+				increase = posBench[0].score-posStarters[-1].score
+				toReplace=posStarters[-1]
+				replacePlayer=posBench[0]
+
+		#print "Replace ", toReplace.name, " with ", replacePlayer.name, "in week",week, "increase",increase
+		if increase > 0:
+			newstarters[newstarters.index(toReplace)]=replacePlayer
+			print "OLD"
+			for each in starters:
+				each.printPlayer()
+			#print "\n\nNEW"
+			#for each in newstarters:
+			#	each.printPlayer()
+
+
+
+
+			for i in range(0,len(starters)):
+
+				optimizeRow=FantasyStatRow()
+				optimizeRow.name=starters[i].name
+				optimizeRow.stats.append(str(starters[i].score))
+				optimizeRow.stats.append(newstarters[i].name)
+				optimizeRow.stats.append(str(newstarters[i].score))
+				starterTable.rows.append(optimizeRow)
+
+			totalRow=FantasyStatRow()
+			totalRow.name="Total"
+			totalRow.stats=[str(sum([x.score for x in starters])),"",str(sum([x.score for x in newstarters]))]
+			starterTable.rows.append(totalRow)
+			weekTables.append(starterTable)
+	return weekTables
+
+
+
+
+
+
+
+
 
 

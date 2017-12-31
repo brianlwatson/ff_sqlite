@@ -161,6 +161,15 @@ def main():
 			ffStats.draftAnalysis(each)
 			htmlStrings.append(ffStats.draftAnalysis(each).getHtmlTable("draftReg"+str(each)))
 
+
+	proj = re.compile("-optimize=/d+")
+	for arg in sys.argv:
+		if proj.match(arg) or "optimize" in arg:
+			teamId = arg.split("=")[1]
+			optTables=ffStats.singleOptimization(1)
+			for table in optTables:
+				htmlStrings.append(table.getHtmlTable("optimization"))
+
 	#Write out to HTML if stats have been added to the html list
 	if len(htmlStrings) > 0:
 		writeHTMLOut()
