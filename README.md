@@ -1,5 +1,5 @@
 # ff_sqlite
-Updated ESPN FF scraper using sqlite (in development)
+Updated ESPN FF scraper using sqlite (not functional while ESPN fantasy football is out of season)
 
 **We will try to add the usage and a description on here of what each stat does
 
